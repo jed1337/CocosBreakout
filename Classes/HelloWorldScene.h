@@ -29,7 +29,9 @@ public:
 	void update(float dt);
 
 	//Listeners
-	bool onContactBegin(PhysicsContact& contact);
+	bool onContactBegin(cocos2d::PhysicsContact& contact);
+	void onContactSeperate(cocos2d::PhysicsContact& contact);
+
 	void onTouchMoved(Touch*,Event*);
 	void onTouchEnded(Touch*,Event*);
 	bool onTouchBegan(Touch*,Event*);
@@ -41,7 +43,7 @@ public:
 private:
 	enum Type { BALL,PADDLE,BLOCK,EDGE };
 
-	float ballSpeed = 30000.0f;
+	float ballSpeed = 70000.0f;
 
 	Sprite* ball;
 	Sprite* paddle;

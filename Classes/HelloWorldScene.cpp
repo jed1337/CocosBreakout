@@ -36,22 +36,48 @@ bool HelloWorld::init() {
 
 	this->scheduleUpdate();
 
+	//auto wall = Node::create();
+	//wall->setPhysicsBody(PhysicsBody::createEdgeBox(visibleSize,PhysicsMaterial(0.1f,1,0.0f)));
+	//wall->setPosition(Vec2(visibleSize/2));
+	//this->addChild(wall);
+	//// create five balls with random velocity and direction
+	//for (int i = 0; i < 15; ++i) {
+	//	Size size(10+CCRANDOM_0_1()*10,10+CCRANDOM_0_1()*10);
+	//	Size winSize = visibleSize;
+	//	Vec2 position = Vec2(winSize.width,winSize.height)-Vec2(size.width,size.height);
+	//	position.x = position.x * CCRANDOM_0_1();
+	//	position.y = position.y * CCRANDOM_0_1();
+	//	position = origin+position+Vec2(size.width/2,size.height/2);
+	//	Vect velocity((CCRANDOM_0_1()-0.5)*400,(CCRANDOM_0_1()-0.5)*400);
+	//	auto ball = Sprite::create("Ball.png");
+	//	ball->setPosition(position);
+	//	ball->setPhysicsBody(PhysicsBody::createCircle(ball->getContentSize().width/2,PhysicsMaterial(0.1f,1,0.0f)));
+	//	ball->getPhysicsBody()->setContactTestBitmask(UINT_MAX);
+	//	ball->getPhysicsBody()->setVelocity(velocity);
+	//	this->addChild(ball);
+	//}
+
+
 	//Add listeners
 	auto contactListener = EventListenerPhysicsContact::create();
 	contactListener->onContactBegin = CC_CALLBACK_1(HelloWorld::onContactBegin,this);
-	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener,this);
+	contactListener->onContactSeparate = CC_CALLBACK_1(HelloWorld::onContactSeperate,this);
+	_eventDispatcher->addEventListenerWithSceneGraphPriority(contactListener,this);
 
-	auto keyboardListener = EventListenerKeyboard::create();
+	/*auto contactListener = EventListenerPhysicsContact::create();
+	contactListener->onContactBegin = CC_CALLBACK_1(HelloWorld::onContactBegin,this);
+	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener,this);*/
+
+	/*auto keyboardListener = EventListenerKeyboard::create();
 	keyboardListener->onKeyPressed = CC_CALLBACK_2(HelloWorld::onKeyPress,this);
-	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(keyboardListener,paddle);
+	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(keyboardListener,paddle);*/
 
-/*
 	auto touchListener = EventListenerTouchOneByOne::create();
 	touchListener->setSwallowTouches(true);
 	touchListener->onTouchBegan = CC_CALLBACK_2(HelloWorld::onTouchBegan,this);
 	touchListener->onTouchMoved = CC_CALLBACK_2(HelloWorld::onTouchMoved,this);
 	touchListener->onTouchEnded = CC_CALLBACK_2(HelloWorld::onTouchEnded,this);
-	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(touchListener,this);*/
+	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(touchListener,this);
 
 	return true;
 }
@@ -80,17 +106,16 @@ void HelloWorld::createBricks() {
 	int padding = 10;
 	int bWidth = 32;
 
-	for (int i = 0; i<20; i++) {
-		//int bWidth = block->getContentSize().width;
-		//int xOffset = padding+bWidth/2+((bWidth+padding)*i);
+	for (int i = 0; i<3; i++) {
+		for (int j = 0; j<11; j++) {
+			Sprite* block = createSprite("Block.png",(bWidth+padding)*(j+1),300-(50*i),Type::BLOCK);
 
-		Sprite* block = createSprite("Block.png", (bWidth)*i, 200, Type::BLOCK);
+			PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(10,10),blockMaterial);
+			blockBody->setContactTestBitmask(0x000001);
 
-		PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(10,10) ,blockMaterial);
-		blockBody->setContactTestBitmask(0x000001);
-
-		block->setPhysicsBody(blockBody);
-		this->addChild(block);
+			block->setPhysicsBody(blockBody);
+			this->addChild(block);
+		}
 	}
 }
 
@@ -166,9 +191,37 @@ void HelloWorld::update(float dt) {
 	checkWin();
 }
 
-bool HelloWorld::onContactBegin(PhysicsContact & contact) {
-	Sprite* spriteA = (Sprite*) contact.getShapeA()->getBody()->getNode();
-	Sprite* spriteB = (Sprite*) contact.getShapeB()->getBody()->getNode();
+bool HelloWorld::onContactBegin(PhysicsContact& contact) {
+	auto a = contact.getShapeA()->getBody();
+	auto b = contact.getShapeB()->getBody();
+
+	// save the velocity, ignore the direction of velocity, only save the length
+	float* v = new float[2];
+	v[0] = a->getVelocity().length();
+	v[1] = b->getVelocity().length();
+
+	contact.setData(v);
+
+	return true;
+}
+
+void HelloWorld::onContactSeperate(PhysicsContact& contact) {
+	PhysicsBody* bodyA = contact.getShapeA()->getBody();
+	PhysicsBody* bodyB = contact.getShapeB()->getBody();
+
+	// restore the velocity, keep the direction of the velocity.
+	float* v = (float*) contact.getData();
+	Vec2 va = bodyA->getVelocity();
+	Vec2 vb = bodyB->getVelocity();
+	va.normalize();
+	vb.normalize();
+	bodyA->setVelocity(va * v[0]);
+	bodyB->setVelocity(vb * v[1]);
+
+	delete v;
+
+	Sprite* spriteA = (Sprite*) bodyA->getNode();
+	Sprite* spriteB = (Sprite*) bodyB->getNode();
 
 	int tagA = spriteA->getTag();
 	int tagB = spriteB->getTag();
@@ -183,11 +236,15 @@ bool HelloWorld::onContactBegin(PhysicsContact & contact) {
 
 	if ((tagA==Type::EDGE||tagB==Type::EDGE)& (ball->getPositionY()<=paddle->getPositionY())) {
 		//lose();
-		
 	}
-
-	return true;
 }
+
+//bool HelloWorld::onContactBegin(PhysicsContact & contact) {
+//
+//
+//	return true;
+//}
+
 
 void HelloWorld::onTouchMoved(Touch* touch,Event * event) {
 	Point touchLocation = this->convertToWorldSpace(this->convertTouchToNodeSpace(touch));
@@ -201,7 +258,8 @@ bool HelloWorld::onTouchBegan(Touch *,Event *) {
 	return true;
 }
 
-void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event) {
+void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event)
+{
 	Node* paddle = event->getCurrentTarget();
 	Vec2 position = paddle->getPosition();
 	Vec2 move = Vec2(5,0);
