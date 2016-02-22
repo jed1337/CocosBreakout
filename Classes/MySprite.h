@@ -3,11 +3,11 @@
 
 #include "cocos2d.h"
 
-class MySprite: public cocos2d::Sprite
+class Block: public cocos2d::Sprite
 {
 public:
-	MySprite();
-	~MySprite();
+	Block();
+	~Block();
 	//static MySprite* create();
 
 	void initOptions();

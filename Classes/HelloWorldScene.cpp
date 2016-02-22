@@ -29,12 +29,13 @@ bool HelloWorld::init() {
 	visibleSize = Director::getInstance()->getVisibleSize();
 	origin = Director::getInstance()->getVisibleOrigin();
 
-	createBall();
-	createEdge();
-	createPaddle();
 	createBricks();
+	createEdge();
 	createHUD();
-
+	createBall();
+	createBallParticles();
+	createPaddle();
+	
 	this->scheduleUpdate();
 
 	//Add listeners
@@ -79,7 +80,7 @@ void HelloWorld::createBricks() {
 
 	for (int i = 0; i<5; i++) {
 		for (int j = 0; j<16; j++) {
-			if(j%2==(i%2)){
+			if(j%2==(i%2)){//Create checkered box pattern
 				Sprite* block = createSprite(to_string(i)+".png",(xWidth+padding)*(j+1),330-(yWidth*i),Type::BLOCK);
 
 				PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(padding,padding),blockMaterial);
@@ -103,7 +104,6 @@ void HelloWorld::createEdge() {
 }
 
 void HelloWorld::createBall() {
-	int a = 0;
 	ball = createSprite("Ball.png",100,100,Type::BALL);
 
 	PhysicsBody* ballBody = PhysicsBody::createCircle(ball->getContentSize().width/2,ballMaterial); // The physics body circle shape
@@ -113,6 +113,23 @@ void HelloWorld::createBall() {
 
 	ball->setPhysicsBody(ballBody);
 	this->addChild(ball,ZScore::OBJECT);
+}
+
+void HelloWorld::createBallParticles() {
+	ballParticle = new CCParticleSystemQuad();
+	ballParticle = CCParticleFireworks::create();
+
+	ballParticle->setStartColor(Color4F::BLUE);
+	ballParticle->setEndColor(Color4F::BLACK);
+	//ballParticle->setEndColorVar(Color4F::WHITE);
+
+	ballParticle->setOpacity(0.5);
+	ballParticle->setDuration(-1);
+	ballParticle->setTotalParticles(400);
+
+	ballParticle->setStartSize(5);
+	ballParticle->setEndSize(0.001);
+	this->addChild(ballParticle);
 }
 
 void HelloWorld::createPaddle() {
@@ -135,11 +152,12 @@ void HelloWorld::createHUD() {
 	scoreLabel = Label::createWithTTF(scoreString+to_string(score),"fonts/pixelmix.ttf",20);
 	scoreLabel->setAnchorPoint(Vec2::ZERO);
 	scoreLabel->setPosition(Vec2(10,10));
-	//this->addChild(scoreLabel,-2);
 	this->addChild(scoreLabel,1);
 }
 
 void HelloWorld::update(float delta) {
+	ballParticle->setPosition(ball->getPosition());
+
 	move(delta);
 	checkIfBallOutOfBounds();
 	checkWin();
@@ -172,7 +190,7 @@ void HelloWorld::move(float delta) {
 void HelloWorld::checkIfBallOutOfBounds() {
 	Vec2 oldPosition = ball->getPosition();
 	Vec2 newPosition = oldPosition;
-	int padding = 10;
+	int padding = 15;
 
 	if (oldPosition.x<-padding) {
 		newPosition.x = padding;
@@ -265,6 +283,22 @@ void HelloWorld::onContactSeperate(PhysicsContact& contact) {
 }
 
 void HelloWorld::remvoveBlock(Sprite * block) {
+	CCParticleSystemQuad* b = new CCParticleSystemQuad();
+	b= CCParticleExplosion::create();
+
+	b->setStartColor(Color4F::WHITE);
+	b->setEndColor(Color4F::WHITE);
+	b->setEndColorVar(Color4F::BLACK);
+
+	b->setOpacity(0.5);
+	b->setSpeed(300);
+	b->setTotalParticles(400);
+
+	b->setEndSize(3.0);
+	b->setStartSize(6.5);
+	b->setPosition(block->getPosition());
+	this->addChild(b);
+
 	this->removeChild(block,true);
 	incrementScore(10);
 }

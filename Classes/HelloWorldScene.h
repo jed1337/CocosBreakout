@@ -19,9 +19,10 @@ public:
 	Sprite* createSprite(string,float,float,int);
 	void createBricks();
 	void createEdge();
-	void createBall();
-	void createPaddle();
 	void createHUD();
+	void createBall();
+	void createBallParticles();
+	void createPaddle();
 
 	void update(float);
 	void move(float);
@@ -51,12 +52,14 @@ private:
 	enum ZScore{HUD, OBJECT};
 	Direction curDirection = Direction::NONE;
 
-	float ballSpeed = 85000.0f;
+	float ballSpeed = 55000.0f;
 	float paddleSpeed = 400;
 
 	Sprite* ball;
 	Sprite* paddle;
 	Sprite* edgeSp;
+
+	CCParticleSystemQuad* ballParticle;
 
 	string scoreString = "Score: ";
 	Label* scoreLabel;
