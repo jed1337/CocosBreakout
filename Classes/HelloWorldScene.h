@@ -21,10 +21,15 @@ public:
 	void createEdge();
 	void createBall();
 	void createPaddle();
+	void createHUD();
 
 	void update(float);
 	void move(float);
+	void checkIfBallOutOfBounds();
 	void checkWin();
+
+	void remvoveBlock(Sprite*);
+	void incrementScore(int);
 
 	void win();
 	void lose();
@@ -43,14 +48,20 @@ public:
 private:
 	enum Type { BALL,PADDLE,BLOCK,EDGE };
 	enum Direction { NONE,RIGHT,LEFT };
+	enum ZScore{HUD, OBJECT};
 	Direction curDirection = Direction::NONE;
 
-	float ballSpeed = 70000.0f;
+	float ballSpeed = 85000.0f;
 	float paddleSpeed = 400;
 
 	Sprite* ball;
 	Sprite* paddle;
 	Sprite* edgeSp;
+
+	string scoreString = "Score: ";
+	Label* scoreLabel;
+
+	int score = 0;
 
 	PhysicsWorld* m_world;
 	void setPhyWorld(PhysicsWorld* world) { m_world = world; };

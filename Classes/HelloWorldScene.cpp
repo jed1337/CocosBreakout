@@ -8,7 +8,7 @@ using namespace std;
 Scene* HelloWorld::createScene() {
 	auto scene = Scene::createWithPhysics();
 	scene->getPhysicsWorld()->setGravity(Vec2::ZERO);
-	scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
+	//scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
 
 	auto layer = HelloWorld::create();
 	layer->setPhyWorld(scene->getPhysicsWorld());
@@ -33,6 +33,7 @@ bool HelloWorld::init() {
 	createEdge();
 	createPaddle();
 	createBricks();
+	createHUD();
 
 	this->scheduleUpdate();
 
@@ -46,13 +47,6 @@ bool HelloWorld::init() {
 	keyboardListener->onKeyPressed = CC_CALLBACK_2(HelloWorld::onKeyPress,this);
 	keyboardListener->onKeyReleased = CC_CALLBACK_2(HelloWorld::onKeyRelease,this);
 	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(keyboardListener,paddle);
-
-	auto touchListener = EventListenerTouchOneByOne::create();
-	touchListener->setSwallowTouches(true);
-	touchListener->onTouchBegan = CC_CALLBACK_2(HelloWorld::onTouchBegan,this);
-	touchListener->onTouchMoved = CC_CALLBACK_2(HelloWorld::onTouchMoved,this);
-	touchListener->onTouchEnded = CC_CALLBACK_2(HelloWorld::onTouchEnded,this);
-	_eventDispatcher->addEventListenerWithSceneGraphPriority(touchListener,this);
 
 	return true;
 }
@@ -73,23 +67,27 @@ Sprite* HelloWorld::createSprite(string path,float x,float y,int tag) {
 		temp = Sprite::create(path);
 
 	temp->setPosition(x,y);
+	temp->setAnchorPoint(Vec2::ANCHOR_MIDDLE);
 	temp->setTag(tag);
 	return temp;
 }
 
 void HelloWorld::createBricks() {
-	int padding = 10;
-	int bWidth = 32;
+	int padding = 5;
+	int xWidth = 25;
+	int yWidth = 30;
 
-	for (int i = 0; i<3; i++) {
-		for (int j = 0; j<11; j++) {
-			Sprite* block = createSprite("Block.png",(bWidth+padding)*(j+1),340-(40*i),Type::BLOCK);
+	for (int i = 0; i<5; i++) {
+		for (int j = 0; j<16; j++) {
+			if(j%2==(i%2)){
+				Sprite* block = createSprite(to_string(i)+".png",(xWidth+padding)*(j+1),330-(yWidth*i),Type::BLOCK);
 
-			PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(10,10),blockMaterial);
-			blockBody->setContactTestBitmask(0x000001);
+				PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(padding,padding),blockMaterial);
+				blockBody->setContactTestBitmask(0x000001);
 
-			block->setPhysicsBody(blockBody);
-			this->addChild(block);
+				block->setPhysicsBody(blockBody);
+				this->addChild(block, ZScore::OBJECT);
+			}
 		}
 	}
 }
@@ -98,10 +96,10 @@ void HelloWorld::createEdge() {
 	edgeSp = createSprite("",visibleSize.width/2,visibleSize.height/2, Type::EDGE);
 
 	PhysicsBody* boundBody = PhysicsBody::createEdgeBox(visibleSize,edgeMaterial);
-	boundBody->setContactTestBitmask(0x000001); // This is the important command, if not available, there is nothing happening when colliding
+	boundBody->setContactTestBitmask(0x000001);
 
-	edgeSp->setPhysicsBody(boundBody); // Set physics Body
-	this->addChild(edgeSp); // Add into Layer
+	edgeSp->setPhysicsBody(boundBody);
+	this->addChild(edgeSp,ZScore::OBJECT);
 }
 
 void HelloWorld::createBall() {
@@ -109,12 +107,12 @@ void HelloWorld::createBall() {
 	ball = createSprite("Ball.png",100,100,Type::BALL);
 
 	PhysicsBody* ballBody = PhysicsBody::createCircle(ball->getContentSize().width/2,ballMaterial); // The physics body circle shape
-	ballBody->setGravityEnable(false); // Not set acceleration
-	ballBody->applyImpulse(Vect(ballSpeed,ballSpeed)); // Create a force Vector to act with the direction of 45 degree, because x = y  Push a force into the ball edge
-	ballBody->setContactTestBitmask(0x000001); //
+	ballBody->setGravityEnable(false); 
+	ballBody->applyImpulse(Vec2(ballSpeed,ballSpeed)); 
+	ballBody->setContactTestBitmask(0x000001);
 
-	ball->setPhysicsBody(ballBody); // Set Physics body
-	this->addChild(ball);
+	ball->setPhysicsBody(ballBody);
+	this->addChild(ball,ZScore::OBJECT);
 }
 
 void HelloWorld::createPaddle() {
@@ -129,11 +127,21 @@ void HelloWorld::createPaddle() {
 	paddle->setPhysicsBody(paddleBody);
 
 	ball->setTag(Type::PADDLE);
-	this->addChild(paddle);
+	this->addChild(paddle,ZScore::OBJECT);
+}
+
+void HelloWorld::createHUD() {
+	Size screenSize = this->getContentSize();
+	scoreLabel = Label::createWithTTF(scoreString+to_string(score),"fonts/pixelmix.ttf",20);
+	scoreLabel->setAnchorPoint(Vec2::ZERO);
+	scoreLabel->setPosition(Vec2(10,10));
+	//this->addChild(scoreLabel,-2);
+	this->addChild(scoreLabel,1);
 }
 
 void HelloWorld::update(float delta) {
 	move(delta);
+	checkIfBallOutOfBounds();
 	checkWin();
 }
 
@@ -141,15 +149,44 @@ void HelloWorld::move(float delta) {
 	Vec2 position = paddle->getPosition();
 	Vec2 move = Vec2(paddleSpeed*delta,0);
 
+	float maxX = this->getBoundingBox().getMaxX();
+	float widthLimit = paddle->getBoundingBox().size.width/2;
+
 	switch (curDirection) {
 	case Direction::LEFT:
-
 		paddle->setPosition(position-move);
 		break;
 	case Direction::RIGHT:
 		paddle->setPosition(position+move);
 		break;
 	}
+
+	if (position.x<0-widthLimit) {
+		paddle->setPosition(Vec2(maxX+widthLimit, position.y));
+	}
+	else if (position.x>maxX+widthLimit+1) {
+		paddle->setPosition(Vec2(0-widthLimit, position.y));
+	}
+}
+
+void HelloWorld::checkIfBallOutOfBounds() {
+	Vec2 oldPosition = ball->getPosition();
+	Vec2 newPosition = oldPosition;
+	int padding = 10;
+
+	if (oldPosition.x<-padding) {
+		newPosition.x = padding;
+	}
+	else if (oldPosition.x>visibleSize.width+padding) {
+		newPosition.x = visibleSize.width-padding;
+	}
+	else if(oldPosition.y<-padding){
+		newPosition.y = padding;
+	}
+	else if (oldPosition.y>visibleSize.height+padding) {
+		newPosition.y = visibleSize.height-padding;
+	}
+	ball->setPosition(newPosition);
 }
 
 void HelloWorld::checkWin() {
@@ -163,7 +200,7 @@ void HelloWorld::checkWin() {
 		}
 	}
 	if (isWin==true) {
-		//win();
+		win();
 	}
 }
 
@@ -215,11 +252,11 @@ void HelloWorld::onContactSeperate(PhysicsContact& contact) {
 	int tagB = spriteB->getTag();
 
 	if (tagA==Type::BLOCK) {
-		this->removeChild(spriteA,true);
+		remvoveBlock(spriteA);
 	}
 
 	if (tagB==Type::BLOCK) {
-		this->removeChild(spriteB,true);
+		remvoveBlock(spriteB);
 	}
 
 	if ((tagA==Type::EDGE||tagB==Type::EDGE)& (ball->getPositionY()<=paddle->getPositionY())) {
@@ -227,14 +264,26 @@ void HelloWorld::onContactSeperate(PhysicsContact& contact) {
 	}
 }
 
+void HelloWorld::remvoveBlock(Sprite * block) {
+	this->removeChild(block,true);
+	incrementScore(10);
+}
+
+void HelloWorld::incrementScore(int add) {
+	score += add;
+	scoreLabel->setString(scoreString+to_string(score));
+	//scoreLabel->setString("eow");
+	//scoreLabel->setPosition(Vec2(10,10));
+}
+
 void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event) {
 	switch (keycode) {
 	case EventKeyboard::KeyCode::KEY_A:
-	case EventKeyboard::KeyCode::KEY_KP_LEFT:
+	case EventKeyboard::KeyCode::KEY_LEFT_ARROW:
 		curDirection = Direction::LEFT;
 		break;
 	case EventKeyboard::KeyCode::KEY_D:
-	case EventKeyboard::KeyCode::KEY_KP_RIGHT:
+	case EventKeyboard::KeyCode::KEY_RIGHT_ARROW:
 		curDirection = Direction::RIGHT;
 		break;
 	}
