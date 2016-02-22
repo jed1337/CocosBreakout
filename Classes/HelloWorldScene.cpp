@@ -36,48 +36,23 @@ bool HelloWorld::init() {
 
 	this->scheduleUpdate();
 
-	//auto wall = Node::create();
-	//wall->setPhysicsBody(PhysicsBody::createEdgeBox(visibleSize,PhysicsMaterial(0.1f,1,0.0f)));
-	//wall->setPosition(Vec2(visibleSize/2));
-	//this->addChild(wall);
-	//// create five balls with random velocity and direction
-	//for (int i = 0; i < 15; ++i) {
-	//	Size size(10+CCRANDOM_0_1()*10,10+CCRANDOM_0_1()*10);
-	//	Size winSize = visibleSize;
-	//	Vec2 position = Vec2(winSize.width,winSize.height)-Vec2(size.width,size.height);
-	//	position.x = position.x * CCRANDOM_0_1();
-	//	position.y = position.y * CCRANDOM_0_1();
-	//	position = origin+position+Vec2(size.width/2,size.height/2);
-	//	Vect velocity((CCRANDOM_0_1()-0.5)*400,(CCRANDOM_0_1()-0.5)*400);
-	//	auto ball = Sprite::create("Ball.png");
-	//	ball->setPosition(position);
-	//	ball->setPhysicsBody(PhysicsBody::createCircle(ball->getContentSize().width/2,PhysicsMaterial(0.1f,1,0.0f)));
-	//	ball->getPhysicsBody()->setContactTestBitmask(UINT_MAX);
-	//	ball->getPhysicsBody()->setVelocity(velocity);
-	//	this->addChild(ball);
-	//}
-
-
 	//Add listeners
 	auto contactListener = EventListenerPhysicsContact::create();
 	contactListener->onContactBegin = CC_CALLBACK_1(HelloWorld::onContactBegin,this);
 	contactListener->onContactSeparate = CC_CALLBACK_1(HelloWorld::onContactSeperate,this);
 	_eventDispatcher->addEventListenerWithSceneGraphPriority(contactListener,this);
 
-	/*auto contactListener = EventListenerPhysicsContact::create();
-	contactListener->onContactBegin = CC_CALLBACK_1(HelloWorld::onContactBegin,this);
-	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener,this);*/
-
-	/*auto keyboardListener = EventListenerKeyboard::create();
+	auto keyboardListener = EventListenerKeyboard::create();
 	keyboardListener->onKeyPressed = CC_CALLBACK_2(HelloWorld::onKeyPress,this);
-	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(keyboardListener,paddle);*/
+	keyboardListener->onKeyReleased = CC_CALLBACK_2(HelloWorld::onKeyRelease,this);
+	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(keyboardListener,paddle);
 
 	auto touchListener = EventListenerTouchOneByOne::create();
 	touchListener->setSwallowTouches(true);
 	touchListener->onTouchBegan = CC_CALLBACK_2(HelloWorld::onTouchBegan,this);
 	touchListener->onTouchMoved = CC_CALLBACK_2(HelloWorld::onTouchMoved,this);
 	touchListener->onTouchEnded = CC_CALLBACK_2(HelloWorld::onTouchEnded,this);
-	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(touchListener,this);
+	_eventDispatcher->addEventListenerWithSceneGraphPriority(touchListener,this);
 
 	return true;
 }
@@ -108,7 +83,7 @@ void HelloWorld::createBricks() {
 
 	for (int i = 0; i<3; i++) {
 		for (int j = 0; j<11; j++) {
-			Sprite* block = createSprite("Block.png",(bWidth+padding)*(j+1),300-(50*i),Type::BLOCK);
+			Sprite* block = createSprite("Block.png",(bWidth+padding)*(j+1),340-(40*i),Type::BLOCK);
 
 			PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(10,10),blockMaterial);
 			blockBody->setContactTestBitmask(0x000001);
@@ -130,10 +105,7 @@ void HelloWorld::createEdge() {
 }
 
 void HelloWorld::createBall() {
-	//ball = Sprite::create("Ball.png",Rect(0,0,52,52));
 	int a = 0;
-	//ball = Sprite::create("Ball.png",Rect(0,0,a, a));
-	//ball = Sprite::create("Ball.png");
 	ball = createSprite("Ball.png",100,100,Type::BALL);
 
 	PhysicsBody* ballBody = PhysicsBody::createCircle(ball->getContentSize().width/2,ballMaterial); // The physics body circle shape
@@ -158,6 +130,26 @@ void HelloWorld::createPaddle() {
 
 	ball->setTag(Type::PADDLE);
 	this->addChild(paddle);
+}
+
+void HelloWorld::update(float delta) {
+	move(delta);
+	checkWin();
+}
+
+void HelloWorld::move(float delta) {
+	Vec2 position = paddle->getPosition();
+	Vec2 move = Vec2(paddleSpeed*delta,0);
+
+	switch (curDirection) {
+	case Direction::LEFT:
+
+		paddle->setPosition(position-move);
+		break;
+	case Direction::RIGHT:
+		paddle->setPosition(position+move);
+		break;
+	}
 }
 
 void HelloWorld::checkWin() {
@@ -185,10 +177,6 @@ void HelloWorld::lose() {
 	auto gameOverScene = GameOverScene::create();
 	gameOverScene->getLayer()->getLabel()->setString("You Lose!");
 	Director::getInstance()->replaceScene(gameOverScene);
-}
-
-void HelloWorld::update(float dt) {
-	checkWin();
 }
 
 bool HelloWorld::onContactBegin(PhysicsContact& contact) {
@@ -239,56 +227,19 @@ void HelloWorld::onContactSeperate(PhysicsContact& contact) {
 	}
 }
 
-//bool HelloWorld::onContactBegin(PhysicsContact & contact) {
-//
-//
-//	return true;
-//}
-
-
-void HelloWorld::onTouchMoved(Touch* touch,Event * event) {
-	Point touchLocation = this->convertToWorldSpace(this->convertTouchToNodeSpace(touch));
-
-	paddle->setPositionX(touchLocation.x);
-}
-
-void HelloWorld::onTouchEnded(Touch *,Event *) {}
-
-bool HelloWorld::onTouchBegan(Touch *,Event *) {
-	return true;
-}
-
-void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event)
-{
-	Node* paddle = event->getCurrentTarget();
-	Vec2 position = paddle->getPosition();
-	Vec2 move = Vec2(5,0);
-
+void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event) {
 	switch (keycode) {
 	case EventKeyboard::KeyCode::KEY_A:
 	case EventKeyboard::KeyCode::KEY_KP_LEFT:
-		paddle->setPosition(position-move);
+		curDirection = Direction::LEFT;
 		break;
 	case EventKeyboard::KeyCode::KEY_D:
 	case EventKeyboard::KeyCode::KEY_KP_RIGHT:
-		paddle->setPosition(position+move);
+		curDirection = Direction::RIGHT;
 		break;
 	}
 }
 
-//void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event) {
-//	Vec2 position = paddle->getPosition();
-//	Vec2 move = Vec2(5,0);
-//
-//	switch (keycode) {
-//	case EventKeyboard::KeyCode::KEY_A:
-//	case EventKeyboard::KeyCode::KEY_KP_LEFT:
-//		paddle->setPosition(position-move);
-//		break;
-//	case EventKeyboard::KeyCode::KEY_D:
-//	case EventKeyboard::KeyCode::KEY_KP_RIGHT:
-//		paddle->setPosition(position+move);
-//		break;
-//	}
-//}
-
+void HelloWorld::onKeyRelease(EventKeyboard::KeyCode,Event *) {
+	curDirection = Direction::NONE;
+}

@@ -22,28 +22,31 @@ public:
 	void createBall();
 	void createPaddle();
 
+	void update(float);
+	void move(float);
 	void checkWin();
+
 	void win();
 	void lose();
 
-	void update(float dt);
 
 	//Listeners
 	bool onContactBegin(cocos2d::PhysicsContact& contact);
 	void onContactSeperate(cocos2d::PhysicsContact& contact);
 
-	void onTouchMoved(Touch*,Event*);
-	void onTouchEnded(Touch*,Event*);
-	bool onTouchBegan(Touch*,Event*);
 	void onKeyPress(EventKeyboard::KeyCode,Event*);
+	void onKeyRelease(EventKeyboard::KeyCode,Event*);
 
 	// implement the "static create()" method manually
 	CREATE_FUNC(HelloWorld);
 
 private:
 	enum Type { BALL,PADDLE,BLOCK,EDGE };
+	enum Direction { NONE,RIGHT,LEFT };
+	Direction curDirection = Direction::NONE;
 
 	float ballSpeed = 70000.0f;
+	float paddleSpeed = 400;
 
 	Sprite* ball;
 	Sprite* paddle;
@@ -52,10 +55,10 @@ private:
 	PhysicsWorld* m_world;
 	void setPhyWorld(PhysicsWorld* world) { m_world = world; };
 
-	PhysicsMaterial blockMaterial = PhysicsMaterial(5.0f,1.0f,0.0f);
-	PhysicsMaterial edgeMaterial = PhysicsMaterial(1.0f,1.0f,0.0f);
+	PhysicsMaterial blockMaterial = PhysicsMaterial(20.0f,1.0f,0.0f);
+	PhysicsMaterial edgeMaterial = PhysicsMaterial(20.0f,1.0f,0.0f);
 	PhysicsMaterial ballMaterial = PhysicsMaterial(1.0f,1.0f,0.0f);
-	PhysicsMaterial paddleMaterial = PhysicsMaterial(10.f,1.0f,0.0f);
+	PhysicsMaterial paddleMaterial = PhysicsMaterial(20.f,1.0f,0.0f);
 
 	Size visibleSize = Director::getInstance()->getVisibleSize();
 	Vec2 origin = Director::getInstance()->getVisibleOrigin();
