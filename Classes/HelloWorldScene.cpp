@@ -13,15 +13,11 @@ Scene* HelloWorld::createScene() {
 	auto layer = HelloWorld::create();
 	layer->setPhyWorld(scene->getPhysicsWorld());
 
-	// add layer as a child to scene
 	scene->addChild(layer);
-
-	// return the scene
 	return scene;
 }
 
 bool HelloWorld::init() {
-	// 1. super init first
 	if (!Layer::init()) {
 		return false;
 	}
@@ -35,6 +31,7 @@ bool HelloWorld::init() {
 	createBall();
 	createBallParticles();
 	createPaddle();
+	loadAudio();
 	
 	this->scheduleUpdate();
 
@@ -81,7 +78,7 @@ void HelloWorld::createBricks() {
 	for (int i = 0; i<5; i++) {
 		for (int j = 0; j<16; j++) {
 			if(j%2==(i%2)){//Create checkered box pattern
-				Sprite* block = createSprite(to_string(i)+".png",(xWidth+padding)*(j+1),330-(yWidth*i),Type::BLOCK);
+				Sprite* block = createSprite("Sprites/"+to_string(i)+".png",(xWidth+padding)*(j+1),330-(yWidth*i),Type::BLOCK);
 
 				PhysicsBody* blockBody = PhysicsBody::createBox(block->getContentSize()-Size(padding,padding),blockMaterial);
 				blockBody->setContactTestBitmask(0x000001);
@@ -104,9 +101,9 @@ void HelloWorld::createEdge() {
 }
 
 void HelloWorld::createBall() {
-	ball = createSprite("Ball.png",100,100,Type::BALL);
+	ball = createSprite("Sprites/Ball.png",100,100,Type::BALL);
 
-	PhysicsBody* ballBody = PhysicsBody::createCircle(ball->getContentSize().width/2,ballMaterial); // The physics body circle shape
+	PhysicsBody* ballBody = PhysicsBody::createCircle(ball->getContentSize().width/2,ballMaterial);
 	ballBody->setGravityEnable(false); 
 	ballBody->applyImpulse(Vec2(ballSpeed,ballSpeed)); 
 	ballBody->setContactTestBitmask(0x000001);
@@ -116,20 +113,28 @@ void HelloWorld::createBall() {
 }
 
 void HelloWorld::createBallParticles() {
-	ballParticle = new CCParticleSystemQuad();
-	ballParticle = CCParticleFireworks::create();
+	ballParticle = new ParticleSystemQuad();
+	ballParticle = ParticleFireworks::create();
 
-	ballParticle->setStartColor(Color4F::BLUE);
-	ballParticle->setEndColor(Color4F::BLACK);
-	//ballParticle->setEndColorVar(Color4F::WHITE);
-
-	ballParticle->setOpacity(0.5);
+	customizeParticle(ballParticle,ballParticleColour,Color4F::BLACK,0.5,100,400,5,0.001, ball->getPosition());
 	ballParticle->setDuration(-1);
-	ballParticle->setTotalParticles(400);
 
-	ballParticle->setStartSize(5);
-	ballParticle->setEndSize(0.001);
 	this->addChild(ballParticle);
+}
+
+void HelloWorld::customizeParticle(ParticleSystemQuad* particle , Color4F startColour,Color4F endColour,
+	float opacity,int speed,int totalParticles,float startSize,float endSize, Vec2 position) {
+	
+	particle->setStartColor(startColour);
+	particle->setEndColor(endColour);
+
+	particle->setOpacity(opacity);
+	particle->setSpeed(speed);
+	particle->setTotalParticles(totalParticles);
+
+	particle->setStartSize(startSize);
+	particle->setEndSize(endSize);
+	particle->setPosition(position);
 }
 
 void HelloWorld::createPaddle() {
@@ -137,22 +142,37 @@ void HelloWorld::createPaddle() {
 	PhysicsBody* paddleBody = PhysicsBody::createBox(paddle->getContentSize(),paddleMaterial);
 
 	paddleBody->setGravityEnable(false);
-	paddleBody->setDynamic(false); // Set static when reacting, no restitution, no changing position
-	paddleBody->setContactTestBitmask(0x000001); // With reaction 
+	paddleBody->setDynamic(false);
+	paddleBody->setContactTestBitmask(0x000001);
 
-	paddle->setPosition(visibleSize.width/2,25);
+	paddle->setPosition(visibleSize.width/2,15);
 	paddle->setPhysicsBody(paddleBody);
 
 	ball->setTag(Type::PADDLE);
 	this->addChild(paddle,ZScore::OBJECT);
 }
 
+void HelloWorld::loadAudio() {
+	audio->preloadBackgroundMusic(audioBGMPath);
+	audio->playBackgroundMusic(audioBGMPath, true);
+
+	audio->preloadEffect(audioCollidePath);
+	audio->preloadEffect(audioLifeLostPath);
+}
+
 void HelloWorld::createHUD() {
 	Size screenSize = this->getContentSize();
-	scoreLabel = Label::createWithTTF(scoreString+to_string(score),"fonts/pixelmix.ttf",20);
+
+	scoreLabel = Label::createWithTTF(scoreString+to_string(score),hudFontPath,hudFontSize);
 	scoreLabel->setAnchorPoint(Vec2::ZERO);
-	scoreLabel->setPosition(Vec2(10,10));
+	scoreLabel->setPosition(Vec2(10,35));
+
+	livesLabel = Label::createWithTTF(livesString+to_string(lives),hudFontPath,hudFontSize);
+	livesLabel->setAnchorPoint(Vec2::ZERO);
+	livesLabel->setPosition(Vec2(10,10));
+
 	this->addChild(scoreLabel,1);
+	this->addChild(livesLabel,1);
 }
 
 void HelloWorld::update(float delta) {
@@ -210,7 +230,7 @@ void HelloWorld::checkIfBallOutOfBounds() {
 void HelloWorld::checkWin() {
 	bool isWin = true;
 
-	Vector<PhysicsBody*>bodies = m_world->getAllBodies();
+	Vector<PhysicsBody*>bodies = physicsWorld->getAllBodies();
 
 	for each (PhysicsBody* body in bodies) {
 		if (body->getNode()->getTag()==Type::BLOCK) {
@@ -226,12 +246,18 @@ void HelloWorld::win() {
 	auto gameOverScene = GameOverScene::create();
 	gameOverScene->getLayer()->getLabel()->setString("You Win!");
 	Director::getInstance()->replaceScene(gameOverScene);
+	Director::getInstance()->pause();
 }
 
 void HelloWorld::lose() {
-	auto gameOverScene = GameOverScene::create();
-	gameOverScene->getLayer()->getLabel()->setString("You Lose!");
-	Director::getInstance()->replaceScene(gameOverScene);
+	decrementLives();
+
+	if(lives<0){
+		auto gameOverScene = GameOverScene::create();
+		gameOverScene->getLayer()->getLabel()->setString("You Lose!");
+		Director::getInstance()->replaceScene(gameOverScene);
+		Director::getInstance()->pause();
+	}
 }
 
 bool HelloWorld::onContactBegin(PhysicsContact& contact) {
@@ -278,36 +304,42 @@ void HelloWorld::onContactSeperate(PhysicsContact& contact) {
 	}
 
 	if ((tagA==Type::EDGE||tagB==Type::EDGE)& (ball->getPositionY()<=paddle->getPositionY())) {
-		//lose();
+		lose();
 	}
 }
 
 void HelloWorld::remvoveBlock(Sprite * block) {
-	CCParticleSystemQuad* b = new CCParticleSystemQuad();
-	b= CCParticleExplosion::create();
+	ParticleSystemQuad* b = new ParticleSystemQuad();
+	b= ParticleExplosion::create();
 
-	b->setStartColor(Color4F::WHITE);
-	b->setEndColor(Color4F::WHITE);
+	customizeParticle(b,Color4F::WHITE,Color4F::WHITE,0.5,300,400,7.0, 3.0, block->getPosition());
 	b->setEndColorVar(Color4F::BLACK);
 
-	b->setOpacity(0.5);
-	b->setSpeed(300);
-	b->setTotalParticles(400);
-
-	b->setEndSize(3.0);
-	b->setStartSize(6.5);
-	b->setPosition(block->getPosition());
 	this->addChild(b);
 
 	this->removeChild(block,true);
+
+	audio->playEffect(audioCollidePath);
 	incrementScore(10);
 }
 
 void HelloWorld::incrementScore(int add) {
 	score += add;
 	scoreLabel->setString(scoreString+to_string(score));
-	//scoreLabel->setString("eow");
-	//scoreLabel->setPosition(Vec2(10,10));
+}
+
+void HelloWorld::decrementLives() {
+	lives--;
+	livesLabel->setString(livesString+to_string(lives<0?0:lives));
+
+	ParticleSystemQuad* p = new ParticleSystemQuad();
+	p = ParticleExplosion::create();
+
+	customizeParticle(p,Color4F::YELLOW,Color4F::BLACK,0.35,500,750,20.0,40.0,ball->getPosition());
+	p->setEndColorVar(Color4F::WHITE);
+
+	audio->playEffect(audioLifeLostPath);
+	this->addChild(p);
 }
 
 void HelloWorld::onKeyPress(EventKeyboard::KeyCode keycode,Event * event) {
