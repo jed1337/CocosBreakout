@@ -11,7 +11,7 @@ public:
     bool init();
     CREATE_FUNC(GameOverLayer);
     
-    void gameOverDone();
+    //void gameOverDone();
     
     CC_SYNTHESIZE_READONLY(cocos2d::LabelTTF*, _label, Label);
 };

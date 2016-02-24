@@ -39,10 +39,10 @@ bool GameOverLayer::init()
 		_label->setPosition( Point(winSize.width/2, winSize.height/2) );
 		this->addChild(_label);
 		
-		this->runAction( Sequence::create(
-														DelayTime::create(3),
-														CallFuncN::create(CC_CALLBACK_0(GameOverLayer::gameOverDone, this)),
-														NULL));
+		//this->runAction( Sequence::create(
+		//												DelayTime::create(3),
+		//												CallFuncN::create(CC_CALLBACK_0(GameOverLayer::gameOverDone, this)),
+		//												NULL));
 		/*								  
 		this->runAction( Sequence::create(
 										  DelayTime::create(3),
@@ -59,10 +59,10 @@ bool GameOverLayer::init()
 	}
 }
 
-void GameOverLayer::gameOverDone()
-{
-	Director::getInstance()->replaceScene( HelloWorld::createScene() );
-}
+//void GameOverLayer::gameOverDone()
+//{
+//	Director::getInstance()->replaceScene( HelloWorld::createScene() );
+//}
 
 GameOverLayer::~GameOverLayer()
 {

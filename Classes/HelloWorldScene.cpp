@@ -256,7 +256,7 @@ void HelloWorld::lose() {
 		auto gameOverScene = GameOverScene::create();
 		gameOverScene->getLayer()->getLabel()->setString("You Lose!");
 		Director::getInstance()->replaceScene(gameOverScene);
-		Director::getInstance()->pause();
+		//Director::getInstance()->pause();
 	}
 }
 
